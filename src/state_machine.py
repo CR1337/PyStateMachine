@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Any, Callable, Dict, Hashable, List, Tuple
+from typing import Any, Callable, Dict, Hashable, Tuple
 
 
 class TransitionEvent:
@@ -141,7 +141,8 @@ class DeterministicFiniteStateMachine:
         return self._next_handle - 1
 
     def _unbind_callback(
-        self, callbacks: Dict[int, Callable[[TransitionEvent], None]], handle: int
+        self, callbacks: Dict[int, Callable[[TransitionEvent], None]],
+        handle: int
     ):
         if handle not in callbacks:
             raise KeyError(f"Handle '{handle}' does not exist!")
@@ -295,6 +296,11 @@ class DeterministicFiniteStateMachine:
         self._current_state = next_state
 
         return True
+
+    def reset(self):
+        self._current_state = self._initial_state
+        self._feed_amount = 0
+        self._transition_amount = 0
 
     @property
     def current_state(self) -> str:
