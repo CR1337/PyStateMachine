@@ -59,34 +59,46 @@ class DeterministicFiniteStateMachine:
     _is_terminal: Dict[str, bool]
     _transitions: Dict[Tuple[str, Hashable], str]
 
-    _out_callbacks: Dict[str, List[Callable[[TransitionEvent], None]]]
-    _in_callbacks: Dict[str, List[Callable[[TransitionEvent], None]]]
+    _exit_callbacks: Dict[
+        str,
+        Dict[int, Callable[[TransitionEvent], None]]
+    ]
+    _enter_callbacks: Dict[
+        str,
+        Dict[int, Callable[[TransitionEvent], None]]
+    ]
     _transition_callbacks: Dict[
         Tuple[str, Hashable],
-        List[Callable[[TransitionEvent], None]]
+        Dict[int, Callable[[TransitionEvent], None]]
     ]
-    _termination_callbacks: List[Callable[[TransitionEvent], None]]
+    _enter_termination_callbacks: Dict[int, Callable[[TransitionEvent], None]]
+    _exit_termination_callbacks: Dict[int, Callable[[TransitionEvent], None]]
+    _enter_initial_callbacks: Dict[int, Callable[[TransitionEvent], None]]
+    _exit_initial_callbacks: Dict[int, Callable[[TransitionEvent], None]]
+    _always_callbacks: Dict[int, Callable[[TransitionEvent], None]]
 
     _initial_state: str
     _current_state: str
 
     _feed_amount: int
     _transition_amount: int
+    _next_handle: int
 
     def __init__(self):
         self._is_terminal = {}
         self._transitions = {}
 
-        self._out_callbacks = {}
-        self._in_callbacks = {}
+        self._exit_callbacks = {}
+        self._enter_callbacks = {}
         self._transition_callbacks = {}
-        self._termination_callbacks = []
+        self._enter_termination_callbacks = {}
 
         self._initial_state = None
         self._current_state = None
 
         self._feed_amount = 0
         self._transition_amount = 0
+        self._next_handle = 0
 
     def _raise_on_non_existing_state(self, state: str):
         if state not in self._is_terminal:
@@ -105,8 +117,8 @@ class DeterministicFiniteStateMachine:
         if is_initial:
             self._initial_state = name
             self._current_state = name
-        self._in_callbacks[name] = []
-        self._out_callbacks[name] = []
+        self._enter_callbacks[name] = []
+        self._exit_callbacks[name] = []
 
     def add_transition(self, out_state: str, in_state: str, token: Hashable):
         self._raise_on_non_existing_state(out_state)
@@ -119,37 +131,43 @@ class DeterministicFiniteStateMachine:
         self._transitions[(out_state, token)] = in_state
         self._transition_callbacks[(out_state, token)] = []
 
-    def bind_callback_incoming(
+    def _bind_callback(
+        self,
+        callbacks: Dict[int, Callable[[TransitionEvent], None]],
+        callback: Callable[[TransitionEvent]]
+    ) -> int:
+        callbacks[self._next_handle] = callback
+        self._next_handle += 1
+        return self._next_handle - 1
+
+    def _unbind_callback(
+        self, callbacks: Dict[int, Callable[[TransitionEvent], None]], handle: int
+    ):
+        if handle not in callbacks:
+            raise KeyError(f"Handle '{handle}' does not exist!")
+        del callbacks[handle]
+
+    def bind_callback_at_enter(
         self, state: str, callback: Callable[[TransitionEvent], None]
     ) -> int:
         self._raise_on_non_existing_state(state)
-        self._in_callbacks[state].append(callback)
-        return len(self._in_callbacks[state]) - 1
+        return self._bind_callback(self._enter_callbacks[state], callback)
 
-    def unbind_callback_incoming(self, state: str, index: int):
+    def unbind_callback_at_enter(self, state: str, handle: int):
         self._raise_on_non_existing_state(state)
-        if index >= len(self._in_callbacks[state]):
-            raise IndexError(f"Index '{index}' out of range!")
-        if self._in_callbacks[state][index] is None:
-            raise IndexError(f"Already unbound at index '{index}'!")
-        self._in_callbacks[state][index] = None
+        self._unbind_callback(self._enter_callbacks[state], handle)
 
-    def bind_callback_outgoing(
+    def bind_callback_at_exit(
         self, state: str, callback: Callable[[TransitionEvent], None]
     ) -> int:
         self._raise_on_non_existing_state(state)
-        self._out_callbacks[state].append(callback)
-        return len(self._out_callbacks[state]) - 1
+        return self._bind_callback(self._exit_callbacks[state], callback)
 
-    def unbind_callback_outgoing(self, state: str, index: int):
+    def unbind_callback_at_exit(self, state: str, handle: int):
         self._raise_on_non_existing_state(state)
-        if index >= len(self._out_callbacks[state]):
-            raise IndexError(f"Index '{index}' out of range!")
-        if self._out_callbacks[state][index] is None:
-            raise IndexError(f"Already unbound at index '{index}'!")
-        self._out_callbacks[state][index] = None
+        self._unbind_callback(self._exit_callbacks[state], handle)
 
-    def bind_callback_transition(
+    def bind_callback_at_transition(
         self, state: str, token: Hashable,
         callback: Callable[[TransitionEvent], None]
     ) -> int:
@@ -157,34 +175,94 @@ class DeterministicFiniteStateMachine:
             raise KeyError(
                 f"A transition '{state} --({token})--> ...' does not exists!"
             )
-        self._transition_callbacks[(state, token)].append(callback)
-        return len(self._transition_callbacks[(state, token)]) - 1
+        return self._bind_callback(
+            self._transition_callbacks[(state, token)], callback
+        )
 
-    def unbind_callback_transition(
-        self, state: str, token: Hashable, index: int
+    def unbind_callback_at_transition(
+        self, state: str, token: Hashable, handle: int
     ):
         if (state, token) not in self._transitions:
             raise KeyError(
                 f"A transition '{state} --({token})--> ...' does not exists!"
             )
-        if index >= len(self._transition_callbacks[(state, token)]):
-            raise IndexError(f"Index '{index}' out of range!")
-        if self._transition_callbacks[(state, token)][index] is None:
-            raise IndexError(f"Already unbound at index '{index}'!")
-        self._transition_callbacks[(state, token)][index] = None
+        self._unbind_callback(
+            self._transition_callbacks[(state, token)], handle
+        )
 
-    def bind_callback_termination(
+    def bind_callback_at_enter_termination(
         self, callback: Callable[[TransitionEvent], None]
     ) -> int:
-        self._termination_callbacks.append(callback)
-        return len(self._termination_callbacks) - 1
+        return self._bind_callback(self._enter_termination_callbacks, callback)
 
-    def unbind_callback_termination(self, index: int):
-        if index >= len(self._transition_callbacks):
-            raise IndexError(f"Index '{index}' out of range!")
-        if self._transition_callbacks[index] is None:
-            raise IndexError(f"Already unbound at index '{index}'!")
-        self._termination_callbacks[index] = None
+    def unbind_callback_at_enter_termination(self, handle: int):
+        self._unbind_callback(self._enter_termination_callbacks, handle)
+
+    def bind_callback_at_exit_termination(
+        self, callback: Callable[[TransitionEvent], None]
+    ) -> int:
+        return self._bind_callback(self._exit_termination_callbacks, callback)
+
+    def unbind_callback_at_exit_termination(self, handle: int):
+        self._unbind_callback(self._exit_termination_callbacks, handle)
+
+    def bind_callback_at_enter_initial(
+        self, callback: Callable[[TransitionEvent], None]
+    ) -> int:
+        return self._bind_callback(self._enter_initial_callbacks, callback)
+
+    def unbind_callback_at_enter_initial(self, handle: int):
+        self._unbind_callback(self._enter_initial_callbacks, handle)
+
+    def bind_callback_at_exit_initial(
+        self, callback: Callable[[TransitionEvent], None]
+    ) -> int:
+        return self._bind_callback(self._exit_initial_callbacks, callback)
+
+    def unbind_callback_at_exit_initial(self, handle: int):
+        self._unbind_callback(self._exit_initial_callbacks, handle)
+
+    def bind_callback_always(
+        self, callback: Callable[[TransitionEvent], None]
+    ) -> int:
+        return self._bind_callback(self._always_callbacks, callback)
+
+    def unbind_callback_always(self, handle: int):
+        self._unbind_callback(self._always_callbacks, handle)
+
+    def _build_callback_generator(self, next_state: str, token: Hashable):
+        result = chain(
+            (c for c in self._always_callbacks.values()),
+            (c for c in self._exit_callbacks[self._current_state].values()),
+            (
+                c for c
+                in self._transition_callbacks[
+                    (self._current_state, token).values()
+                ]
+            ),
+            (c for c in self._enter_callbacks[next_state].values())
+        )
+        for condition, callbacks in zip(
+            (
+                self._is_terminal[self._current_state],
+                self._current_state == self._initial_state,
+                self._is_terminal[next_state],
+                next_state == self._initial_state
+            ),
+            (
+                self._exit_termination_callbacks,
+                self._exit_initial_callbacks,
+                self._enter_termination_callbacks,
+                self._enter_initial_callbacks
+            )
+        ):
+            if condition:
+                result = chain(
+                    result, (
+                        c for c in callbacks.values()
+                    )
+                )
+        return result
 
     def feed(self, token: Hashable, payload: Any = None) -> bool:
         if self._initial_state is None:
@@ -209,20 +287,9 @@ class DeterministicFiniteStateMachine:
             self._transition_amount,
             payload
         )
-        callbacks = chain(
-            (c for c in self._out_callbacks[self._current_state]),
-            (
-                c for c
-                in self._transition_callbacks[(self._current_state, token_)]
-            ),
-            (c for c in self._in_callbacks[next_state])
-        )
-        if self._is_terminal[next_state]:
-            callbacks = chain(
-                callbacks, (c for c in self._termination_callbacks)
-            )
         [
-            callback(transition_event) for callback in callbacks
+            callback(transition_event) for callback
+            in self._build_callback_generator(next_state, token_)
             if callback is not None
         ]
         self._current_state = next_state
