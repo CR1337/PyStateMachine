@@ -248,3 +248,11 @@ class DeterministicFiniteStateMachine:
     @property
     def transition_amount(self) -> int:
         return self._transition_amount
+
+    @property
+    def state_amount(self) -> int:
+        return len(self._is_terminal.keys())
+
+    @property
+    def transition_amount(self) -> int:
+        return len(self._transitions.keys())
