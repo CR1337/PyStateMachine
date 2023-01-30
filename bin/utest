@@ -1,0 +1,3 @@
+#!/bin/sh
+rm -r test/__pycache__
+python3 -m  unittest test/*
