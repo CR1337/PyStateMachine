@@ -13,10 +13,12 @@ class TestStateMachine(unittest.TestCase):
         self.state_machine.add_state('1')
         self.state_machine.add_state('2')
         self.state_machine.add_state('3')
+        self.state_machine.add_state('x', is_terminal=True)
 
         self.state_machine.add_transition('0', '0', 0)
         self.state_machine.add_transition('0', '1', 1)
         self.state_machine.add_transition('0', '2', 2)
+        self.state_machine.add_transition('0', 'x', ...)
         self.state_machine.add_transition('1', '1', 0)
         self.state_machine.add_transition('1', '2', 1)
         self.state_machine.add_transition('1', '3', 2)
@@ -28,10 +30,10 @@ class TestStateMachine(unittest.TestCase):
         self.state_machine.add_transition('3', '1', 2)
 
     def test_state_amount(self):
-        self.assertEqual(self.state_machine.state_amount, 4)
+        self.assertEqual(self.state_machine.state_amount, 5)
 
     def test_transition_amount(self):
-        self.assertEqual(self.state_machine.transition_amount, 12)
+        self.assertEqual(self.state_machine.transition_amount, 13)
 
     def test_current_state(self):
         self.assertEqual(self.state_machine.current_state, '0')
@@ -68,4 +70,9 @@ class TestStateMachine(unittest.TestCase):
         self.assertTrue(self.state_machine.feed(1))
 
     def test_invalid_token(self):
+        self.state_machine.feed(1)
         self.assertFalse(self.state_machine.feed(42))
+
+    def test_any_token(self):
+        self.assertTrue(self.state_machine.feed(...))
+        self.assertEqual(self.state_machine.current_state, 'x')
