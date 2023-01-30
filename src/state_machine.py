@@ -116,16 +116,21 @@ class DeterministicFiniteStateMachine:
 
     def _raise_on_transition(self, state: Hashable, token: Hashable):
         self._raise_on_state(state)
-        if not isinstance(token, Hashable):
-            raise TypeError(f"Token '{token}' has to be hashable!")
+        self._raise_on_token(token)
         if (state, token) not in self._transitions:
             raise KeyError(
                 f"A transition '{state} --({token})--> ...' does not exists!"
             )
 
+    def _raise_on_token(self, token: Hashable):
+        if not isinstance(token, Hashable):
+            raise TypeError(f"Token '{token}' has to be hashable!")
+
     def add_state(
         self, state: Hashable, is_terminal: bool = False, is_initial: bool = False
     ):
+        if not isinstance(state, Hashable):
+            raise TypeError(f"State '{state}' has to be hashable!")
         if state in self._is_terminal:
             raise KeyError(f"State '{state}' already exists!")
         if is_initial and self._initial_state is not None:
@@ -193,7 +198,7 @@ class DeterministicFiniteStateMachine:
         self, state: Hashable, token: Hashable,
         callback: Callable[[TransitionEvent], None]
     ) -> int:
-        self._raise_on_transition()
+        self._raise_on_transition(state, token)
         return self._bind_callback(
             self._transition_callbacks[(state, token)], callback
         )
@@ -293,6 +298,8 @@ class DeterministicFiniteStateMachine:
     def feed(self, token: Hashable, payload: Any = None) -> bool:
         if self._initial_state is None:
             raise RuntimeError("No initial state available!")
+        self._raise_on_token(token)
+
         self._feed_count += 1
 
         token_ = token
