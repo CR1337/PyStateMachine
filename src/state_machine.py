@@ -75,13 +75,13 @@ class _PicklableDeterministicFiniteStateMachine:
         cls, state_machine: 'DeterministicFiniteStateMachine'
     ) -> '_PicklableDeterministicFiniteStateMachine':
         return cls(
-            _is_terminal = state_machine._is_terminal,
-            _transitions = state_machine._transitions,
-            _initial_state = state_machine._initial_state,
-            _current_state = state_machine._current_state,
-            _feed_count = state_machine._feed_count,
-            _transition_count = state_machine._transition_count,
-            _raise_on_invalid_token = state_machine._raise_on_invalid_token
+            state_machine._is_terminal,
+            state_machine._transitions,
+            state_machine._initial_state,
+            state_machine._current_state,
+            state_machine._feed_count,
+            state_machine._transition_count,
+            state_machine._raise_on_invalid_token
         )
 
     def pickle_to_file(self, filename: str, protocol: int = None):
@@ -97,13 +97,21 @@ class _PicklableDeterministicFiniteStateMachine:
 
     def to_state_machine(self) -> 'DeterministicFiniteStateMachine':
         state_machine = DeterministicFiniteStateMachine()
-        state_machine._is_terminal = self._is_terminal,
-        state_machine._transitions = self._transitions,
-        state_machine._initial_state = self._initial_state,
-        state_machine._current_state = self._current_state,
-        state_machine._feed_count = self._feed_count,
-        state_machine._transition_count = self._transition_count,
+        state_machine._is_terminal = self._is_terminal
+        state_machine._transitions = self._transitions
+        state_machine._initial_state = self._initial_state
+        state_machine._current_state = self._current_state
+        state_machine._feed_count = self._feed_count
+        state_machine._transition_count = self._transition_count
         state_machine._raise_on_invalid_token = self._raise_on_invalid_token
+
+        for state in self._is_terminal:
+            state_machine._enter_callbacks[state] = {}
+            state_machine._exit_callbacks[state] = {}
+
+        for transition in self._transitions:
+            state_machine._transition_callbacks[transition] = {}
+
         return state_machine
 
 
