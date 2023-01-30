@@ -4,50 +4,50 @@ from typing import Any, Callable, Dict, Hashable, Iterable, List, Tuple
 
 class TransitionEvent:
 
-    _in_state: str
-    _out_state: str
-    _out_state_is_terminal: bool
+    _entered_state: str
+    _exited_state: str
+    _exited_state_is_terminal: bool
     _token: Hashable
-    _feed_amount: int
-    _transition_amount: int
+    _feed_count: int
+    _transition_count: int
     _payload: Any
 
     def __init__(
-        self, in_state: str, out_state: str, token: Hashable,
-        is_terminal: bool, feed_amount: int, transition_amount: int,
+        self, entered_state: str, exited_state: str, token: Hashable,
+        is_terminal: bool, feed_count: int, transition_count: int,
         payload: Any
     ):
-        self._in_state = in_state
-        self._out_state = out_state
-        self._out_state_is_terminal = is_terminal
+        self._entered_state = entered_state
+        self._exited_state = exited_state
+        self._exited_state_is_terminal = is_terminal
         self._token = token
-        self._feed_amount = feed_amount
-        self._transition_amount = transition_amount
+        self._feed_count = feed_count
+        self._transition_count = transition_count
         self._payload = payload
 
     @property
-    def in_state(self) -> str:
-        return self._in_state
+    def entered_state(self) -> str:
+        return self._entered_state
 
     @property
-    def out_state(self) -> str:
-        return self._out_state
+    def exited_state(self) -> str:
+        return self._exited_state
 
     @property
-    def out_state_is_terminal(self) -> bool:
-        return self._out_state_is_terminal
+    def exited_state_is_terminal(self) -> bool:
+        return self._exited_state_is_terminal
 
     @property
     def token(self) -> Hashable:
         return self._token
 
     @property
-    def feed_amount(self) -> int:
-        return self._feed_amount
+    def feed_count(self) -> int:
+        return self._feed_count
 
     @property
-    def transition_amount(self) -> int:
-        return self._transition_amount
+    def transition_count(self) -> int:
+        return self._transition_count
 
     @property
     def payload(self) -> Any:
@@ -80,8 +80,8 @@ class DeterministicFiniteStateMachine:
     _initial_state: str
     _current_state: str
 
-    _feed_amount: int
-    _transition_amount: int
+    _feed_count: int
+    _transition_count: int
     _next_handle: int
 
     _raise_on_invalid_token: bool
@@ -102,8 +102,8 @@ class DeterministicFiniteStateMachine:
         self._initial_state = None
         self._current_state = None
 
-        self._feed_amount = 0
-        self._transition_amount = 0
+        self._feed_count = 0
+        self._transition_count = 0
         self._next_handle = 0
 
         self._raise_on_invalid_token = raise_on_invalid_token
@@ -128,16 +128,18 @@ class DeterministicFiniteStateMachine:
         self._enter_callbacks[name] = {}
         self._exit_callbacks[name] = {}
 
-    def add_transition(self, out_state: str, in_state: str, token: Hashable):
-        self._raise_on_state(out_state)
-        self._raise_on_state(in_state)
-        if (out_state, token) in self._transitions:
+    def add_transition(
+        self, exited_state: str, entered_state: str, token: Hashable
+    ):
+        self._raise_on_state(exited_state)
+        self._raise_on_state(entered_state)
+        if (exited_state, token) in self._transitions:
             raise KeyError(
-                f"A transition '{out_state} --({token})--> ...' "
+                f"A transition '{exited_state} --({token})--> ...' "
                 "already exists!"
             )
-        self._transitions[(out_state, token)] = in_state
-        self._transition_callbacks[(out_state, token)] = {}
+        self._transitions[(exited_state, token)] = entered_state
+        self._transition_callbacks[(exited_state, token)] = {}
 
     def _bind_callback(
         self,
@@ -286,7 +288,7 @@ class DeterministicFiniteStateMachine:
     def feed(self, token: Hashable, payload: Any = None) -> bool:
         if self._initial_state is None:
             raise RuntimeError("No initial state available!")
-        self._feed_amount += 1
+        self._feed_count += 1
 
         token_ = token
         next_state = self._transitions.get((self._current_state, token_), None)
@@ -300,12 +302,12 @@ class DeterministicFiniteStateMachine:
                     raise ValueError(f"Invalid token: '{token}'!")
                 return False
 
-        self._transition_amount += 1
+        self._transition_count += 1
         next_state = self._transitions[(self._current_state, token_)]
         transition_event = TransitionEvent(
             self._current_state, next_state, token_,
-            self._is_terminal[next_state], self._feed_amount,
-            self._transition_amount,
+            self._is_terminal[next_state], self._feed_count,
+            self._transition_count,
             payload
         )
         [
@@ -319,8 +321,8 @@ class DeterministicFiniteStateMachine:
 
     def reset(self):
         self._current_state = self._initial_state
-        self._feed_amount = 0
-        self._transition_amount = 0
+        self._feed_count = 0
+        self._transition_count = 0
 
     @property
     def current_state(self) -> str:
@@ -336,11 +338,11 @@ class DeterministicFiniteStateMachine:
 
     @property
     def feed_count(self) -> int:
-        return self._feed_amount
+        return self._feed_count
 
     @property
     def transition_count(self) -> int:
-        return self._transition_amount
+        return self._transition_count
 
     @property
     def state_amount(self) -> int:
