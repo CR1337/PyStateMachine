@@ -92,6 +92,10 @@ class DeterministicFiniteStateMachine:
         self._enter_callbacks = {}
         self._transition_callbacks = {}
         self._enter_termination_callbacks = {}
+        self._exit_termination_callbacks = {}
+        self._enter_initial_callbacks = {}
+        self._exit_initial_callbacks = {}
+        self._always_callbacks = {}
 
         self._initial_state = None
         self._current_state = None
@@ -117,8 +121,8 @@ class DeterministicFiniteStateMachine:
         if is_initial:
             self._initial_state = name
             self._current_state = name
-        self._enter_callbacks[name] = []
-        self._exit_callbacks[name] = []
+        self._enter_callbacks[name] = {}
+        self._exit_callbacks[name] = {}
 
     def add_transition(self, out_state: str, in_state: str, token: Hashable):
         self._raise_on_non_existing_state(out_state)
@@ -129,12 +133,12 @@ class DeterministicFiniteStateMachine:
                 "already exists!"
             )
         self._transitions[(out_state, token)] = in_state
-        self._transition_callbacks[(out_state, token)] = []
+        self._transition_callbacks[(out_state, token)] = {}
 
     def _bind_callback(
         self,
         callbacks: Dict[int, Callable[[TransitionEvent], None]],
-        callback: Callable[[TransitionEvent]]
+        callback: Callable[[TransitionEvent], None]
     ) -> int:
         callbacks[self._next_handle] = callback
         self._next_handle += 1
@@ -231,15 +235,15 @@ class DeterministicFiniteStateMachine:
     def unbind_callback_always(self, handle: int):
         self._unbind_callback(self._always_callbacks, handle)
 
-    def _build_callback_generator(self, next_state: str, token: Hashable):
+    def _callback_generator(self, next_state: str, token: Hashable):
         result = chain(
             (c for c in self._always_callbacks.values()),
             (c for c in self._exit_callbacks[self._current_state].values()),
             (
                 c for c
                 in self._transition_callbacks[
-                    (self._current_state, token).values()
-                ]
+                    (self._current_state, token)
+                ].values()
             ),
             (c for c in self._enter_callbacks[next_state].values())
         )
@@ -290,7 +294,7 @@ class DeterministicFiniteStateMachine:
         )
         [
             callback(transition_event) for callback
-            in self._build_callback_generator(next_state, token_)
+            in self._callback_generator(next_state, token_)
             if callback is not None
         ]
         self._current_state = next_state
@@ -315,11 +319,11 @@ class DeterministicFiniteStateMachine:
         return self._current_state == self._initial_state
 
     @property
-    def feed_amount(self) -> int:
+    def feed_count(self) -> int:
         return self._feed_amount
 
     @property
-    def transition_amount(self) -> int:
+    def transition_count(self) -> int:
         return self._transition_amount
 
     @property
