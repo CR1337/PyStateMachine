@@ -84,7 +84,9 @@ class DeterministicFiniteStateMachine:
     _transition_amount: int
     _next_handle: int
 
-    def __init__(self):
+    _raise_on_invalid_token: bool
+
+    def __init__(self, raise_on_invalid_token: bool = False):
         self._is_terminal = {}
         self._transitions = {}
 
@@ -103,6 +105,8 @@ class DeterministicFiniteStateMachine:
         self._feed_amount = 0
         self._transition_amount = 0
         self._next_handle = 0
+
+        self._raise_on_invalid_token = raise_on_invalid_token
 
     def _raise_on_non_existing_state(self, state: str):
         if state not in self._is_terminal:
@@ -282,6 +286,8 @@ class DeterministicFiniteStateMachine:
                 (self._current_state, token_), None
             )
             if next_state is None:
+                if self._raise_on_invalid_token:
+                    raise ValueError(f"Invalid token: '{token}'!")
                 return False
 
         self._transition_amount += 1
