@@ -8,7 +8,7 @@ class TransitionEvent:
 
     _entered_state: Hashable
     _exited_state: Hashable
-    _exited_state_is_terminal: bool
+    _entered_state_is_terminal: bool
     _token: Hashable
     _feed_count: int
     _transition_count: int
@@ -21,7 +21,7 @@ class TransitionEvent:
     ):
         self._entered_state = entered_state
         self._exited_state = exited_state
-        self._exited_state_is_terminal = is_terminal
+        self._entered_state_is_terminal = is_terminal
         self._token = token
         self._feed_count = feed_count
         self._transition_count = transition_count
@@ -29,30 +29,65 @@ class TransitionEvent:
 
     @property
     def entered_state(self) -> Hashable:
+        """The state entered after the transition.
+
+        Returns:
+            Hashable: state after the transition
+        """
         return self._entered_state
 
     @property
     def exited_state(self) -> Hashable:
+        """The state exited due to the transition.
+
+        Returns:
+            Hashable: state exited
+        """
         return self._exited_state
 
     @property
-    def exited_state_is_terminal(self) -> bool:
-        return self._exited_state_is_terminal
+    def entered_state_is_terminal(self) -> bool:
+        """Wether the entered state is a terminal state.
+
+        Returns:
+            bool: True if entered state is terminal, else False
+        """
+        return self._entered_state_is_terminal
 
     @property
     def token(self) -> Hashable:
+        """The token that caused the transition.
+
+        Returns:
+            Hashable: token that caused the transition
+        """
         return self._token
 
     @property
     def feed_count(self) -> int:
+        """How many feeds already occurred.
+
+        Returns:
+            int: count of feed calls so far
+        """
         return self._feed_count
 
     @property
     def transition_count(self) -> int:
+        """"How many transitions already occurred.
+
+        Returns:
+            int: count of transitions so far
+        """
         return self._transition_count
 
     @property
     def payload(self) -> Any:
+        """The optional payload feed to the state machine.
+
+        Returns:
+            Any: optional payload
+        """
         return self._payload
 
 
@@ -149,6 +184,14 @@ class DeterministicFiniteStateMachine:
 
     @staticmethod
     def unpickle_from_file(filename: str) -> 'DeterministicFiniteStateMachine':
+        """Create a DeterministicFiniteStateMachine from a pickle file.
+
+        Args:
+            filename (str): filename of the pickle file
+
+        Returns:
+            DeterministicFiniteStateMachine: pickled state machine
+        """
         picklable_state_machine = (
             _PicklableDeterministicFiniteStateMachine.unpickle_from_file(
                 filename
@@ -157,12 +200,27 @@ class DeterministicFiniteStateMachine:
         return picklable_state_machine.to_state_machine()
 
     def pickle_to_file(self, filename: str, protocol: int = None):
+        """Pickle the state machine to a file. Note that callbacks are not
+        pickled and all states and transitions passed to the state machine
+        have to be picklable.
+
+        Args:
+            filename (str): filename to pickle to
+            protocol (int, optional): pickle protocol. Defaults to None.
+        """
         picklable_state_machine = (
             _PicklableDeterministicFiniteStateMachine.from_state_machine(self)
         )
         picklable_state_machine.pickle_to_file(filename, protocol)
 
     def __init__(self, raise_on_invalid_token: bool = False):
+        """Initialize a state machine.
+
+        Args:
+            raise_on_invalid_token (bool, optional):
+            wether to raise an exception when an invalid token is fedd.
+            Defaults to False.
+        """
         self._is_terminal = {}
         self._transitions = {}
 
@@ -205,6 +263,21 @@ class DeterministicFiniteStateMachine:
     def add_state(
         self, state: Hashable, is_terminal: bool = False, is_initial: bool = False
     ):
+        """Adds a state to ste state machine.
+
+        Args:
+            state (Hashable): the state
+            is_terminal (bool, optional): wether it is terminal.
+            Defaults to False.
+            is_initial (bool, optional): wether it is initial.
+            Defaults to False.
+
+        Raises:
+            TypeError: when state is not hashable
+            KeyError: when state already exists
+            ValueError: when is_initial is True but there already is
+            an initial state
+        """
         if not isinstance(state, Hashable):
             raise TypeError(f"State '{state}' has to be hashable!")
         if state in self._is_terminal:
@@ -223,6 +296,16 @@ class DeterministicFiniteStateMachine:
     def add_transition(
         self, exited_state: Hashable, entered_state: Hashable, token: Hashable
     ):
+        """Adds a transition to the state machine.
+
+        Args:
+            exited_state (Hashable): state exited due to the transition
+            entered_state (Hashable): state entered after the transition
+            token (Hashable): token triggering the transition
+
+        Raises:
+            KeyError: when transition already exists
+        """
         self._raise_on_state(exited_state)
         self._raise_on_state(entered_state)
         if (exited_state, token) in self._transitions:
@@ -253,20 +336,50 @@ class DeterministicFiniteStateMachine:
     def bind_callback_at_enter(
         self, state: Hashable, callback: Callable[[TransitionEvent], None]
     ) -> int:
+        """Binds a callback to entering a state.
+
+        Args:
+            state (Hashable): the state
+            callback (Callable[[TransitionEvent], None]): the callback
+
+        Returns:
+            int: the callback handle
+        """
         self._raise_on_state(state)
         return self._bind_callback(self._enter_callbacks[state], callback)
 
     def unbind_callback_at_enter(self, state: Hashable, handle: int):
+        """Unbinds a callback for entering a state
+
+        Args:
+            state (Hashable): the state
+            handle (int): the callback handle
+        """
         self._raise_on_state(state)
         self._unbind_callback(self._enter_callbacks[state], handle)
 
     def bind_callback_at_exit(
         self, state: Hashable, callback: Callable[[TransitionEvent], None]
     ) -> int:
+        """Binds a callback to exiting a state.
+
+        Args:
+            state (Hashable): the state
+            callback (Callable[[TransitionEvent], None]): the callback
+
+        Returns:
+            int: the callback handle
+        """
         self._raise_on_state(state)
         return self._bind_callback(self._exit_callbacks[state], callback)
 
     def unbind_callback_at_exit(self, state: Hashable, handle: int):
+        """Unbinds a callback for exiting a state.
+
+        Args:
+            state (Hashable): the state
+            handle (int): the callback handle
+        """
         self._raise_on_state(state)
         self._unbind_callback(self._exit_callbacks[state], handle)
 
@@ -274,6 +387,16 @@ class DeterministicFiniteStateMachine:
         self, state: Hashable, token: Hashable,
         callback: Callable[[TransitionEvent], None]
     ) -> int:
+        """Binds a callback to a transition.
+
+        Args:
+            state (Hashable): the exited state
+            token (Hashable): the triggering token
+            callback (Callable[[TransitionEvent], None]): the callback
+
+        Returns:
+            int: the callback handle
+        """
         self._raise_on_transition(state, token)
         return self._bind_callback(
             self._transition_callbacks[(state, token)], callback
@@ -282,6 +405,13 @@ class DeterministicFiniteStateMachine:
     def unbind_callback_at_transition(
         self, state: Hashable, token: Hashable, handle: int
     ):
+        """Unbinds a callback for a transition.
+
+        Args:
+            state (Hashable): the exited state
+            token (Hashable): the triggering token
+            handle (int): the callback handle
+        """
         self._raise_on_transition()
         self._unbind_callback(
             self._transition_callbacks[(state, token)], handle
@@ -290,41 +420,106 @@ class DeterministicFiniteStateMachine:
     def bind_callback_at_enter_termination(
         self, callback: Callable[[TransitionEvent], None]
     ) -> int:
+        """Binds a callback to entering a terminal state.
+
+        Args:
+            callback (Callable[[TransitionEvent], None]): the callback
+
+        Returns:
+            int: the callback handle
+        """
         return self._bind_callback(self._enter_termination_callbacks, callback)
 
     def unbind_callback_at_enter_termination(self, handle: int):
+        """Unbinds a callback for entering a terminal state.
+
+        Args:
+            handle (int): the callback handle
+        """
         self._unbind_callback(self._enter_termination_callbacks, handle)
 
     def bind_callback_at_exit_termination(
         self, callback: Callable[[TransitionEvent], None]
     ) -> int:
+        """Binds a callback to exiting a terminal state.
+
+        Args:
+            callback (Callable[[TransitionEvent], None]): the callback
+
+        Returns:
+            int: the callback handle
+        """
         return self._bind_callback(self._exit_termination_callbacks, callback)
 
     def unbind_callback_at_exit_termination(self, handle: int):
+        """Unbinds a callback for exiting a terminal state.
+
+        Args:
+            handle (int): the callback handle
+        """
         self._unbind_callback(self._exit_termination_callbacks, handle)
 
     def bind_callback_at_enter_initial(
         self, callback: Callable[[TransitionEvent], None]
     ) -> int:
+        """Binds a callback to entering the initial state.
+
+        Args:
+            callback (Callable[[TransitionEvent], None]): the callback
+
+        Returns:
+            int: the callback handle
+        """
         return self._bind_callback(self._enter_initial_callbacks, callback)
 
     def unbind_callback_at_enter_initial(self, handle: int):
+        """Unbinds a callback for entering the initial state.
+
+        Args:
+            handle (int): the callback handle
+        """
         self._unbind_callback(self._enter_initial_callbacks, handle)
 
     def bind_callback_at_exit_initial(
         self, callback: Callable[[TransitionEvent], None]
     ) -> int:
+        """Binds a callback to exiting the initial state.
+
+        Args:
+            callback (Callable[[TransitionEvent], None]): the callback
+
+        Returns:
+            int: the callback handle
+        """
         return self._bind_callback(self._exit_initial_callbacks, callback)
 
     def unbind_callback_at_exit_initial(self, handle: int):
+        """Unbinds a callback for exiting the initial state.
+
+        Args:
+            handle (int): the callback handle
+        """
         self._unbind_callback(self._exit_initial_callbacks, handle)
 
     def bind_callback_always(
         self, callback: Callable[[TransitionEvent], None]
     ) -> int:
+        """Binds a callback to all transitions.
+
+        Args:
+            callback (Callable[[TransitionEvent], None]): the callback
+
+        Returns:
+            int: the callback handle
+        """
         return self._bind_callback(self._always_callbacks, callback)
 
     def unbind_callback_always(self, handle: int):
+        """Unbinds a callback for all transitions.
+
+        Args:
+            handle (int): the callback handle
+        """
         self._unbind_callback(self._always_callbacks, handle)
 
     def _callback_generator(self, next_state: Hashable, token: Hashable):
@@ -364,6 +559,16 @@ class DeterministicFiniteStateMachine:
     def feed_many(
         self, tokens: Iterable[Hashable], payloads: Iterable[Any] = None
     ) -> List[bool]:
+        """Feed tokens and optionals payloads to the state machine.
+
+        Args:
+            tokens (Iterable[Hashable]): the tokens
+            payloads (Iterable[Any], optional): the payloads. Defaults to None.
+
+        Returns:
+            List[bool]: a list of truth values representing the validity of
+            the feed tokens.
+        """
         if payloads is None:
             payloads = [None] * len(tokens)
         return [
@@ -372,6 +577,20 @@ class DeterministicFiniteStateMachine:
         ]
 
     def feed(self, token: Hashable, payload: Any = None) -> bool:
+        """Feed a token and a optional payload to the state machine.
+
+        Args:
+            token (Hashable): the token
+            payload (Any, optional): the payload. Defaults to None.
+
+        Raises:
+            RuntimeError: when there is no initial state
+            ValueError: when the token is invalid und raise_on_invalid_token
+            was set to True
+
+        Returns:
+            bool: True if the token is valid, else False
+        """
         if self._initial_state is None:
             raise RuntimeError("No initial state available!")
         self._raise_on_token(token)
@@ -408,34 +627,73 @@ class DeterministicFiniteStateMachine:
         return True
 
     def reset(self):
+        """Resets the state machine to the initial state. Also resets
+        the feed count and the transition count.
+        """
         self._current_state = self._initial_state
         self._feed_count = 0
         self._transition_count = 0
 
     @property
     def current_state(self) -> Hashable:
+        """The current state the state machine is in.
+
+        Returns:
+            Hashable: the state machines current state
+        """
         return self._current_state
 
     @property
     def is_terminated(self) -> bool:
+        """Wether the current state is a terminal state
+
+        Returns:
+            bool: True if the state machine has terminated, else False
+        """
         return self._is_terminal[self._current_state]
 
     @property
     def is_initial(self) -> bool:
+        """Wether the current state is the initial state
+
+        Returns:
+            bool: True if the current state is the initial state, else False
+        """
         return self._current_state == self._initial_state
 
     @property
     def feed_count(self) -> int:
+        """How many times the feed method was called without raising a
+        RuntimeError or TypeError.
+
+        Returns:
+            int: the feed count
+        """
         return self._feed_count
 
     @property
     def transition_count(self) -> int:
+        """How many times a transition was performed.
+
+        Returns:
+            int: the transition count
+        """
         return self._transition_count
 
     @property
     def state_amount(self) -> int:
+        """The amount of states the state machine has.
+
+        Returns:
+            int: the state amount
+        """
         return len(self._is_terminal.keys())
 
     @property
     def transition_amount(self) -> int:
+        """The amount of transitions the state machine has.
+
+        Returns:
+            int: the transition amount
+        """
         return len(self._transitions.keys())
