@@ -1,4 +1,6 @@
 from itertools import chain
+from dataclasses import dataclass
+import pickle
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Tuple
 
 
@@ -54,6 +56,60 @@ class TransitionEvent:
         return self._payload
 
 
+@dataclass
+class _PicklableDeterministicFiniteStateMachine:
+
+    _is_terminal: Dict[Hashable, bool]
+    _transitions: Dict[Tuple[Hashable, Hashable], Hashable]
+
+    _initial_state: Hashable
+    _current_state: Hashable
+
+    _feed_count: int
+    _transition_count: int
+    _next_handle: int
+
+    _raise_on_invalid_token: bool
+
+    @classmethod
+    def from_state_machine(
+        cls, state_machine: 'DeterministicFiniteStateMachine'
+    ) -> '_PicklableDeterministicFiniteStateMachine':
+        return cls(
+            _is_terminal = state_machine._is_terminal,
+            _transitions = state_machine._transitions,
+            _initial_state = state_machine._initial_state,
+            _current_state = state_machine._current_state,
+            _feed_count = state_machine._feed_count,
+            _transition_count = state_machine._transition_count,
+            _next_handle = state_machine._next_handle,
+            _raise_on_invalid_token = state_machine._raise_on_invalid_token
+        )
+
+    def pickle_to_file(self, filename: str, protocol: int = None):
+        with open(filename, 'wb') as file:
+            pickle.dump(self, file, protocol)
+
+    @classmethod
+    def unpickle_from_file(
+        cls, filename: str
+    ) -> '_PicklableDeterministicFiniteStateMachine':
+        with open(filename, 'rb') as file:
+            return pickle.load(file)
+
+    def to_state_machine(self) -> 'DeterministicFiniteStateMachine':
+        state_machine = DeterministicFiniteStateMachine()
+        state_machine._is_terminal = self._is_terminal,
+        state_machine._transitions = self._transitions,
+        state_machine._initial_state = self._initial_state,
+        state_machine._current_state = self._current_state,
+        state_machine._feed_count = self._feed_count,
+        state_machine._transition_count = self._transition_count,
+        state_machine._next_handle = self._next_handle,
+        state_machine._raise_on_invalid_token = self._raise_on_invalid_token
+        return state_machine
+
+
 class DeterministicFiniteStateMachine:
 
     _is_terminal: Dict[Hashable, bool]
@@ -85,6 +141,21 @@ class DeterministicFiniteStateMachine:
     _next_handle: int
 
     _raise_on_invalid_token: bool
+
+    @staticmethod
+    def unpickle_from_file(filename: str) -> 'DeterministicFiniteStateMachine':
+        picklable_state_machine = (
+            _PicklableDeterministicFiniteStateMachine.unpickle_from_file(
+                filename
+            )
+        )
+        return picklable_state_machine.to_state_machine()
+
+    def pickle_to_file(self, filename: str, protocol: int = None):
+        picklable_state_machine = (
+            _PicklableDeterministicFiniteStateMachine.from_state_machine(self)
+        )
+        picklable_state_machine.pickle_to_file(filename, protocol)
 
     def __init__(self, raise_on_invalid_token: bool = False):
         self._is_terminal = {}
