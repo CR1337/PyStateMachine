@@ -114,6 +114,15 @@ class DeterministicFiniteStateMachine:
         if state not in self._is_terminal:
             raise KeyError(f"State '{state}' does not exist!")
 
+    def _raise_on_transition(self, state: Hashable, token: Hashable):
+        self._raise_on_state(state)
+        if not isinstance(token, Hashable):
+            raise TypeError(f"Token '{token}' has to be hashable!")
+        if (state, token) not in self._transitions:
+            raise KeyError(
+                f"A transition '{state} --({token})--> ...' does not exists!"
+            )
+
     def add_state(
         self, state: Hashable, is_terminal: bool = False, is_initial: bool = False
     ):
@@ -184,10 +193,7 @@ class DeterministicFiniteStateMachine:
         self, state: Hashable, token: Hashable,
         callback: Callable[[TransitionEvent], None]
     ) -> int:
-        if (state, token) not in self._transitions:
-            raise KeyError(
-                f"A transition '{state} --({token})--> ...' does not exists!"
-            )
+        self._raise_on_transition()
         return self._bind_callback(
             self._transition_callbacks[(state, token)], callback
         )
@@ -195,10 +201,7 @@ class DeterministicFiniteStateMachine:
     def unbind_callback_at_transition(
         self, state: Hashable, token: Hashable, handle: int
     ):
-        if (state, token) not in self._transitions:
-            raise KeyError(
-                f"A transition '{state} --({token})--> ...' does not exists!"
-            )
+        self._raise_on_transition()
         self._unbind_callback(
             self._transition_callbacks[(state, token)], handle
         )
