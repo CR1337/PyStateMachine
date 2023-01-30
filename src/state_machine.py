@@ -67,7 +67,6 @@ class _PicklableDeterministicFiniteStateMachine:
 
     _feed_count: int
     _transition_count: int
-    _next_handle: int
 
     _raise_on_invalid_token: bool
 
@@ -82,7 +81,6 @@ class _PicklableDeterministicFiniteStateMachine:
             _current_state = state_machine._current_state,
             _feed_count = state_machine._feed_count,
             _transition_count = state_machine._transition_count,
-            _next_handle = state_machine._next_handle,
             _raise_on_invalid_token = state_machine._raise_on_invalid_token
         )
 
@@ -105,7 +103,6 @@ class _PicklableDeterministicFiniteStateMachine:
         state_machine._current_state = self._current_state,
         state_machine._feed_count = self._feed_count,
         state_machine._transition_count = self._transition_count,
-        state_machine._next_handle = self._next_handle,
         state_machine._raise_on_invalid_token = self._raise_on_invalid_token
         return state_machine
 
@@ -388,7 +385,7 @@ class DeterministicFiniteStateMachine:
         self._transition_count += 1
         next_state = self._transitions[(self._current_state, token_)]
         transition_event = TransitionEvent(
-            self._current_state, next_state, token_,
+            next_state, self._current_state, token_,
             self._is_terminal[next_state], self._feed_count,
             self._transition_count,
             payload
