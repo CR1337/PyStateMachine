@@ -108,7 +108,7 @@ class DeterministicFiniteStateMachine:
 
         self._raise_on_invalid_token = raise_on_invalid_token
 
-    def _raise_on_non_existing_state(self, state: str):
+    def _raise_on_state(self, state: str):
         if state not in self._is_terminal:
             raise KeyError(f"State '{state}' does not exist!")
 
@@ -129,8 +129,8 @@ class DeterministicFiniteStateMachine:
         self._exit_callbacks[name] = {}
 
     def add_transition(self, out_state: str, in_state: str, token: Hashable):
-        self._raise_on_non_existing_state(out_state)
-        self._raise_on_non_existing_state(in_state)
+        self._raise_on_state(out_state)
+        self._raise_on_state(in_state)
         if (out_state, token) in self._transitions:
             raise KeyError(
                 f"A transition '{out_state} --({token})--> ...' "
@@ -159,21 +159,21 @@ class DeterministicFiniteStateMachine:
     def bind_callback_at_enter(
         self, state: str, callback: Callable[[TransitionEvent], None]
     ) -> int:
-        self._raise_on_non_existing_state(state)
+        self._raise_on_state(state)
         return self._bind_callback(self._enter_callbacks[state], callback)
 
     def unbind_callback_at_enter(self, state: str, handle: int):
-        self._raise_on_non_existing_state(state)
+        self._raise_on_state(state)
         self._unbind_callback(self._enter_callbacks[state], handle)
 
     def bind_callback_at_exit(
         self, state: str, callback: Callable[[TransitionEvent], None]
     ) -> int:
-        self._raise_on_non_existing_state(state)
+        self._raise_on_state(state)
         return self._bind_callback(self._exit_callbacks[state], callback)
 
     def unbind_callback_at_exit(self, state: str, handle: int):
-        self._raise_on_non_existing_state(state)
+        self._raise_on_state(state)
         self._unbind_callback(self._exit_callbacks[state], handle)
 
     def bind_callback_at_transition(
