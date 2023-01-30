@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Any, Callable, Dict, Hashable, Tuple
+from typing import Any, Callable, Dict, Hashable, Iterable, List, Tuple
 
 
 class TransitionEvent:
@@ -272,6 +272,16 @@ class DeterministicFiniteStateMachine:
                     )
                 )
         return result
+
+    def feed_many(
+        self, tokens: Iterable[Hashable], payloads: Iterable[Any] = None
+    ) -> List[bool]:
+        if payloads is None:
+            payloads = [None] * len(tokens)
+        return [
+            self.feed(token, payload)
+            for token, payload in zip(tokens, payloads, strict=True)
+        ]
 
     def feed(self, token: Hashable, payload: Any = None) -> bool:
         if self._initial_state is None:
