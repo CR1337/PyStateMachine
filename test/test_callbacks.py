@@ -100,7 +100,7 @@ class TestCallbacks(unittest.TestCase):
             self.callback_called = True
             self.assertEqual(event.entered_state, 'b')
             self.assertEqual(event.exited_state, 'a')
-            self.assertTrue(event.exited_state_is_terminal)
+            self.assertTrue(event.entered_state_is_terminal)
             self.assertEqual(event.token, "b")
             self.assertEqual(event.feed_count, 2)
             self.assertEqual(event.transition_count, 2)
